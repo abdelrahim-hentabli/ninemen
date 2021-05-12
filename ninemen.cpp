@@ -22,18 +22,30 @@ struct Node{
   int depth;
   int heuristic;
 
-  friend bool operator > (const Node& rhs, const Node& lhs){
-    return lhs.depth + lhs.heuristic > rhs.depth + rhs.heuristic;
+  //these are backwards because priority queue finds the largest item
+  friend bool operator > (const Node& lhs, const Node& rhs){
+    int lhsF = lhs.depth + lhs.heuristic;
+    int rhsF = rhs.depth + rhs.heuristic;
+    if(lhsF == rhsF){
+      return lhs.heuristic < rhs.heuristic;
+    }
+    return lhsF < rhsF;
   }
-  friend bool operator < (const Node& rhs, const Node& lhs){
-    return lhs.depth + lhs.heuristic < rhs.depth + rhs.heuristic;
+
+  friend bool operator < (const Node& lhs, const Node& rhs){
+    int lhsF = lhs.depth + lhs.heuristic;
+    int rhsF = rhs.depth + rhs.heuristic;
+    if(lhsF == rhsF){
+      return lhs.heuristic > rhs.heuristic;
+    }
+    return lhsF > rhsF;
   }
 };
 
 
 //checks if string is goal state
 bool goal(const string& state){
-  return state == "123456789****";
+  return (state == "123456789****");
 }
 
 //prints the string state in a visually understandable way
@@ -74,7 +86,7 @@ int bfsHeuristic(const string& state){
 int misplacedTile(const string& state){
   int count = 0;
   for(int i = 0; i < 9; i++){
-    count += ( (i+1) == (state[i] - '0'))?0:1; 
+    count += ( i == (state[i] - '1'))?0:1; 
   }
   return count; 
 }
@@ -85,12 +97,12 @@ int manhattanDistance(const string& state){
   int i;
   for(i = 0; i < 10; i++){
     if(state[i] != '*'){
-      totalDist += abs(state[i]-'0' - 1 - i);
+      totalDist += abs(i - (state[i] - '1'));
     }
   }
-  for(; i < 13; i++){
+  for(i = 10; i < 13; i++){
     if(state[i] != '*'){
-      totalDist += 1 + abs( (state[i] - '0' - 1) - ((i-10) * 2 + 3));
+      totalDist += 1 + abs( ((i-10) * 2 + 3) -  (state[i] - '1') );
     }
   }
   return totalDist;
@@ -122,17 +134,18 @@ vector<string> validMoves(const string& state){
           tempState = state.substr(0, i) + state[aboveI] + state.substr(i+1, aboveI - (i+1)) + '*' + state.substr(aboveI+1);
           output.push_back(tempState);
         default:
-          if(i != 0){
+          if(i > 0){
             output.push_back(state.substr(0, i-1) + '*' + state[i-1] + state.substr(i+1));
           }
-          if(i != 9){
+          if(i < 9){
             output.push_back(state.substr(0, i) + state[i+1] + '*' + state.substr(i+2));
           }
       }
     }
   }
   if(foundStars != 4){
-    cout<<"Invalid State: "<<state;
+    prettyPrint(state);
+    assert(foundStars == 4);
     return vector<string>();
   }
   return output;
@@ -143,32 +156,35 @@ bool a_star(string startState, int (*heuristic)(const string&)){
   priority_queue<Node> theQueue;
   vector<string> moves;
   int depth = 0;
-
   int maxQueueSize = 0;
   int steps = 0;
-  theQueue.push(Node(startState,0,heuristic(startState)));
+  Node currentNode;
+  theQueue.push(Node(startState, 0, heuristic(startState)));
   visitedStates.insert(startState);
   while(!theQueue.empty()){
-    prettyPrint(theQueue.top().state);
-    maxQueueSize = std::max(maxQueueSize, int(theQueue.size()));
-    std::cout<<"Heuristic: "<<theQueue.top().heuristic<<'\n';
-    std::cout<<"Depth: "<<theQueue.top().depth<<'\n';
+    currentNode = theQueue.top();
+    prettyPrint(currentNode.state);
+    maxQueueSize = max(maxQueueSize, int(theQueue.size()));
+    std::cout<<"Heuristic: "<<currentNode.heuristic<<'\n';
+    std::cout<<"Depth: "<<currentNode.depth<<'\n';
+    std::cout<<"h()+g(): "<<currentNode.depth + currentNode.heuristic<<'\n';
     std::cout<<"Queue Size: "<<theQueue.size()<<'\n';
     std::cout<<"Visited Nodes: "<<visitedStates.size()<<"\n\n";
-    if(goal(theQueue.top().state)){ 
+//    assert((currentNode.depth+ currentNode.heuristic) % 2 == 1);
+    if(goal(currentNode.state)){ 
       std::cout<<"Solved in "<<steps<<" steps.\n";
       std::cout<<"Max Queue Size: "<<maxQueueSize<<'\n';
       return true;
     }
     else{
       steps++;
-      moves = validMoves(theQueue.top().state);
-      depth = theQueue.top().depth;
+      moves = validMoves(currentNode.state);
+      depth = currentNode.depth + 1;
       theQueue.pop();
       for(auto move: moves){
         if(visitedStates.find(move) == visitedStates.end()){
           visitedStates.insert(move);
-          theQueue.push(Node(move, depth+1, heuristic(move)));
+          theQueue.push(Node(move, depth, heuristic(move)));
         }
       }
     }
@@ -183,14 +199,14 @@ bool a_star(string startState, int (*heuristic)(const string&)){
 int main(){
   int algorithm = 0;
   string line;
-  while(algorithm < 1 || algorithm > 3){
+  while(algorithm < 1 || algorithm > 5){
     cout<<"Choose an algorithm:\n \
     1) Breadth-First Search\n \
     2) A* with Misplaced Tile Heuristic\n \
     3) A* with Manhattan Distance Heuristic\n";
     getline(cin, line);
     algorithm = stoi(line, nullptr); 
-    if(algorithm < 0 || algorithm > 3){
+    if(algorithm < 0 || algorithm > 5){
       cout<<"Please Input a valid Algorithm\n";
     }
   }
@@ -208,6 +224,16 @@ int main(){
     case 3:
       a_star(startState, manhattanDistance);
       break;
+    case 4:
+      prettyPrint(startState);
+      cout<<"Manhattan Distance: "<<manhattanDistance(startState)<<'\n';
+      break;
+    case 5:
+      prettyPrint(startState);
+      cout<<"-------Valid Moves-------\n";
+      for(auto move : validMoves(startState)){
+        prettyPrint(move);
+      }
   }
   return 0;
 }
