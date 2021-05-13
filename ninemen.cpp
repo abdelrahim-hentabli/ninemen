@@ -21,7 +21,8 @@ struct Node{
   string state;
   int depth;
   int heuristic;
-
+  
+  //these are flipped because priority queue is a max heap
   friend bool operator > (const Node& rhs, const Node& lhs){
     return lhs.depth + lhs.heuristic > rhs.depth + rhs.heuristic;
   }
